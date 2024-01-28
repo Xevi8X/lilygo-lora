@@ -5,20 +5,37 @@
 #include "utilities.h"
 #include <LoRa.h>
 #include "images.h"
+#include <CRC16.h>
+
+CRC16 crc16;
 
 SSD1306Wire display(0x3c, I2C_SDA, I2C_SCL);
 uint32_t last_transmition = 0;
 constexpr uint32_t interval = 200;
+constexpr uint8_t header[4] = {'P', 'I', 'W', 'O'};
+
+struct Message
+{
+    uint8_t header[4];
+    uint16_t counter;
+    uint16_t crc16;
+};
 
 struct
 {
     bool ready;
-    String message;
+    Message message;
     int RSSI;
     float SNR;
 } last_message;
 
+
+
 int counter = 0;
+
+Message from_bytes(uint8_t bytes){
+
+}
 
 void setup()
 {
@@ -26,6 +43,7 @@ void setup()
 
     Serial.begin(9600);
     Serial.println("Initialized!");
+
     SPI.begin(RADIO_SCLK_PIN, RADIO_MISO_PIN, RADIO_MOSI_PIN);
     Wire.begin(I2C_SDA, I2C_SCL);
 
@@ -68,7 +86,7 @@ void loop()
         // Serial.println(buf);
 
         display.clear();
-        display.drawString(0, 0, last_message.message.c_str());
+        display.drawString(0, 0, last_message .c_str());
         snprintf(buf, sizeof(buf), "RSSI:%i", last_message.RSSI);
         display.drawString(0, 18, buf);
         snprintf(buf, sizeof(buf), "SNR:%.1f", last_message.SNR);
@@ -89,15 +107,12 @@ void loop()
 }
 
 void onReceive(int packetSize) {
-    if (packetSize == 0) return;
+    if (packetSize != sizeof(Message)) return;
 
-    String recv = "";
-    // read packet
-    while (LoRa.available()) {
-        recv += (char)LoRa.read();
-    }
+    uint8_t buffer[sizeof(Message)];
+    LoRa.readBytes(static_cast<uint8_t*>(&buffer),sizeof(Message));
 
-    last_message.message = recv;
+    memcpy(&last_message.message, reinterpret_cast<Message*>(&buffer), sizeof(Message));
     last_message.RSSI = LoRa.packetRssi();
     last_message.SNR = LoRa.packetSnr();
     last_message.ready = true;
@@ -110,8 +125,11 @@ void send_message()
         LoRa.receive();
         return;
     }
-    LoRa.print("PIWO KURWA ");
-    LoRa.print(counter++);
+    Message msg;
+    memcpy(&msg.header,&header,sizeof(header));
+    msg.counter = counter++;
+    msg.crc16 = crc16.calculateCRC(reinterpret_cast<uint8_t*>(&msg), offsetof(Message, crc16));
+    LoRa.write(reinterpret_cast<uint8_t*>(&msg), sizeof(msg));
     LoRa.endPacket();
     LoRa.receive();
 }
