@@ -96,14 +96,14 @@ void loop()
         else
         {
             snprintf(buf, sizeof(buf), "PIWO: %i", last_message.message.counter);
+            display.drawXbm(128-beer_width, 64-beer_height,
+                beer_width, beer_height, inverted_beer_bits);
         }
         display.drawString(0, 0, buf);
         snprintf(buf, sizeof(buf), "RSSI:%i", last_message.RSSI);
         display.drawString(0, 18, buf);
         snprintf(buf, sizeof(buf), "SNR:%.1f", last_message.SNR);
         display.drawString(0, 36, buf);
-        display.drawXbm(128-beer_width, 64-beer_height,
-            beer_width, beer_height, inverted_beer_bits);
         display.display();
 
         last_message.ready = false;
