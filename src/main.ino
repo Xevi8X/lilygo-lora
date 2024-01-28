@@ -29,13 +29,7 @@ struct
     float SNR;
 } last_message;
 
-
-
 int counter = 0;
-
-Message from_bytes(uint8_t bytes){
-
-}
 
 void setup()
 {
@@ -70,23 +64,40 @@ void setup()
     
 }
 
+bool check_header(uint8_t msg_header[4])
+{
+    return header[0] == msg_header[0] 
+        && header[1] == msg_header[1] 
+        && header[2] == msg_header[2] 
+        && header[3] == msg_header[3];
+}
+
 void loop()
 {   
     // Display incomming messages
     //noInterrupts();
     if(last_message.ready)
     {
+        bool crc_valid = crc16.checkCRC(reinterpret_cast<uint8_t*>(&last_message.message),
+            offsetof(Message, crc16), last_message.message.crc16);
+
+        
+        
         char buf[256];
-
-        // Serial.println("======================");
-        // Serial.println(last_message.message);
-        // snprintf(buf, sizeof(buf), "RSSI:%i", last_message.RSSI);
-        // Serial.println(buf);
-        // snprintf(buf, sizeof(buf), "SNR:%.1f", last_message.SNR);
-        // Serial.println(buf);
-
         display.clear();
-        display.drawString(0, 0, last_message .c_str());
+        if (!crc_valid)
+        {
+            snprintf(buf, sizeof(buf), "INV. CRC");
+        }
+        else if(!check_header(last_message.message.header))
+        {
+            snprintf(buf, sizeof(buf), "INV. HEAD");
+        }
+        else
+        {
+            snprintf(buf, sizeof(buf), "PIWO: %i", last_message.message.counter);
+        }
+        display.drawString(0, 0, buf);
         snprintf(buf, sizeof(buf), "RSSI:%i", last_message.RSSI);
         display.drawString(0, 18, buf);
         snprintf(buf, sizeof(buf), "SNR:%.1f", last_message.SNR);
@@ -110,7 +121,7 @@ void onReceive(int packetSize) {
     if (packetSize != sizeof(Message)) return;
 
     uint8_t buffer[sizeof(Message)];
-    LoRa.readBytes(static_cast<uint8_t*>(&buffer),sizeof(Message));
+    LoRa.readBytes(static_cast<uint8_t*>(buffer),static_cast<size_t>(sizeof(Message)));
 
     memcpy(&last_message.message, reinterpret_cast<Message*>(&buffer), sizeof(Message));
     last_message.RSSI = LoRa.packetRssi();
