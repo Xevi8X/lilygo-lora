@@ -4,6 +4,7 @@
 #include <SPI.h>
 #include "utilities.h"
 #include <LoRa.h>
+#include "images.h"
 
 SSD1306Wire display(0x3c, I2C_SDA, I2C_SCL);
 uint32_t last_transmition = 0;
@@ -33,10 +34,10 @@ void setup()
 
     display.init();
     display.flipScreenVertically();
-    display.setFont(ArialMT_Plain_10);
+    display.setFont(ArialMT_Plain_16);
 
     
-
+    LoRa.setSignalBandwidth(500E6);
     LoRa.setPins(RADIO_CS_PIN, RADIO_RST_PIN, RADIO_DIO0_PIN);
     if (!LoRa.begin(LoRa_frequency)) {
         Serial.println("Starting LoRa failed!");
@@ -54,28 +55,31 @@ void setup()
 void loop()
 {   
     // Display incomming messages
-    noInterrupts();
+    //noInterrupts();
     if(last_message.ready)
     {
-        // display.clear();
-        // display.drawString(0, 12, last_message.message.c_str());
-        // char buf[256];
-        // snprintf(buf, sizeof(buf), "RSSI:%i", last_message.RSSI);
-        // display.drawString(0, 24, buf);
-        // snprintf(buf, sizeof(buf), "SNR:%.1f", last_message.SNR);
-        // display.drawString(0, 40, buf);
-        // display.display();
-
-        Serial.println("======================");
-        Serial.println(last_message.message);
         char buf[256];
+
+        // Serial.println("======================");
+        // Serial.println(last_message.message);
+        // snprintf(buf, sizeof(buf), "RSSI:%i", last_message.RSSI);
+        // Serial.println(buf);
+        // snprintf(buf, sizeof(buf), "SNR:%.1f", last_message.SNR);
+        // Serial.println(buf);
+
+        display.clear();
+        display.drawString(0, 0, last_message.message.c_str());
         snprintf(buf, sizeof(buf), "RSSI:%i", last_message.RSSI);
-        Serial.println(buf);
+        display.drawString(0, 18, buf);
         snprintf(buf, sizeof(buf), "SNR:%.1f", last_message.SNR);
-        Serial.println(buf);
+        display.drawString(0, 36, buf);
+        display.drawXbm(128-beer_width, 64-beer_height,
+            beer_width, beer_height, inverted_beer_bits);
+        display.display();
+
         last_message.ready = false;
     }
-    interrupts();
+    //interrupts();
 
     if (millis() - last_transmition > interval) 
     {
@@ -103,10 +107,11 @@ void send_message()
 {
     if(0 == LoRa.beginPacket())
     {
+        LoRa.receive();
         return;
     }
-    LoRa.print("PIWO KURWAAAA ");
-    LoRa.println(counter++);
+    LoRa.print("PIWO KURWA ");
+    LoRa.print(counter++);
     LoRa.endPacket();
     LoRa.receive();
 }

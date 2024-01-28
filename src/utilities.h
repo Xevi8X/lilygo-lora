@@ -240,6 +240,10 @@
 #define HAS_SDCARD
 #define HAS_DISPLAY
 
+#ifndef OLED_WIRE_PORT
+#define OLED_WIRE_PORT Wire
+#endif
+
 
 #else
 #error "For the first use, please define the board version and model in <utilities. h>"
